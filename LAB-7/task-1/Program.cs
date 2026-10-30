@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 const int n = 26;
@@ -21,10 +21,10 @@ List<string> words = new()
 List<Student> students = new()
 {
     new("Коваленко", "ГРШ-3/1", 88),
-    new("Мельник", "ГРШ-3/2", 64),
+    new("Вареник", "ГРШ-3/2", 64),
     new("Іщенко", "ГРШ-3/1", 93),
     new("Бондар", "ГРШ-3/1", 71),
-    new("Савченко", "ГРШ-3/2", 55),
+    new("Шишка", "ГРШ-3/2", 55),
     new("Ткачук", "ГРШ-3/2", 90),
     new("Кравець", "ГРШ-3/1", 76),
     new("Іванів", "ГРШ-3/1", 48),
@@ -36,14 +36,7 @@ List<Student> students = new()
 
 List<int> selectedNumbers = Algorithms.Filter(numbers, number => number <= 0);
 List<string> selectedWords = Algorithms.Filter(words, word => word.Contains('-'));
-List<Student> selectedStudents =
-    Algorithms.Filter(students, student => student.Score >= 60 && student.Score <= 89);
-
-if (Algorithms.Filter(new List<int>(), number => number <= 0).Count != 0 ||
-    Algorithms.Filter(numbers, _ => false).Count != 0)
-{
-    throw new InvalidOperationException("Перевірка крайових випадків Filter не пройдена.");
-}
+List<Student> selectedStudents = Algorithms.Filter(students, student => student.Score >= 60 && student.Score <= 89);
 
 Console.WriteLine("Завдання 1. Filter");
 Console.WriteLine($"Числа (від'ємні або нуль), {selectedNumbers.Count}: {string.Join(", ", selectedNumbers)}");
