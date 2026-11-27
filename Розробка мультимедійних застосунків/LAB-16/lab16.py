@@ -48,8 +48,7 @@ def make_source():
         print("   еталонний кліп уже є:", SRC)
         return
     tiles = []
-    for name in ["astronaut", "chelsea", "coffee",
-                 "immunohistochemistry", "retina", "hubble_deep_field"]:
+    for name in ["astronaut", "chelsea", "coffee", "immunohistochemistry", "retina", "hubble_deep_field"]:
         a = getattr(data, name)()
         if a.ndim == 2:
             a = np.stack([a] * 3, -1)
@@ -83,9 +82,9 @@ def make_source():
             f = f + rng.normal(0, 2.0, f.shape)      # легке зерно
             fh.write(np.clip(f, 0, 255).astype(np.uint8).tobytes())
     r = run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-             "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
-             "-r", str(FPS), "-i", raw, "-c:v", "ffv1",
-             "-pix_fmt", "yuv420p", SRC])
+            "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
+            "-r", str(FPS), "-i", raw, "-c:v", "ffv1",
+            "-pix_fmt", "yuv420p", SRC])
     if r.returncode:
         raise RuntimeError("ffmpeg не зміг зібрати джерело:\n" + r.stderr[-500:])
     os.remove(raw)
@@ -95,19 +94,16 @@ def make_source():
 def probe(path):
     """Повертає словник із властивостями відеодоріжки."""
     keys = "codec_name,profile,width,height,r_frame_rate,pix_fmt,bit_rate,nb_frames"
-    r = run(["ffprobe", "-v", "error", "-select_streams", "v:0",
-             "-show_entries", f"stream={keys}", "-of", "default=nw=1", path])
+    r = run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", f"stream={keys}", "-of", "default=nw=1", path])
     d = dict(l.split("=", 1) for l in r.stdout.strip().split("\n") if "=" in l)
-    r = run(["ffprobe", "-v", "error", "-show_entries",
-             "format=format_name,duration,size", "-of", "default=nw=1", path])
+    r = run(["ffprobe", "-v", "error", "-show_entries", "format=format_name,duration,size", "-of", "default=nw=1", path])
     d.update(dict(l.split("=", 1) for l in r.stdout.strip().split("\n") if "=" in l))
     return d
 
 
 # Фільтр для порівняння. Три речі в ньому обов'язкові, і про кожну
 # написано в методичці; прибрати хоч одну — і числа стануть беззмістовними.
-CMP = ("[0:v]setpts=N/{fps}/TB,format=yuv420p,setparams=range=tv[a];"
-       "[1:v]setpts=N/{fps}/TB,format=yuv420p,setparams=range=tv[b];[a][b]")
+CMP = ("[0:v]setpts=N/{fps}/TB,format=yuv420p,setparams=range=tv[a];" "[1:v]setpts=N/{fps}/TB,format=yuv420p,setparams=range=tv[b];[a][b]")
 
 
 def plot_rd(rows, name="rd.png"):
@@ -123,6 +119,26 @@ def plot_rd(rows, name="rd.png"):
     print("   збережено:", name)
 
 
+def plot_codecs(job_rows, name="codecs_rd.png"):
+    """Криві розмір-проти-якість для різних відеокодеків."""
+    fig, ax = plt.subplots(figsize=(8, 5))
+    colors = {"H.264": "#B35A1F", "H.265": "#1F6F66", "AV1": "#7A5AA6"}
+    for codec_name, rows in job_rows:
+        sizes_kb = [r[2] / 1024 for r in rows]
+        psnrs = [r[3] for r in rows]
+        ax.plot(sizes_kb, psnrs, "o-", color=colors[codec_name], label=codec_name)
+    ax.axhline(39.5, color="#777777", linestyle="--", linewidth=1)
+    ax.set_xlabel("розмір, КБ")
+    ax.set_ylabel("PSNR, дБ")
+    ax.set_xscale("log")
+    ax.grid(alpha=0.3)
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(name, dpi=130)
+    plt.close(fig)
+    print("   збережено:", name)
+
+
 # ════════════════════════════════════════════════════════════════════
 #  ВАША ЧАСТИНА. Три місця.
 # ════════════════════════════════════════════════════════════════════
@@ -133,15 +149,15 @@ def encode(out_name, codec="libx264", crf=23, preset="medium", extra=None):
     Збирається звичайний рядок запуску ffmpeg:
 
         ffmpeg -y -hide_banner -loglevel error -i <SRC>
-               -c:v <codec> -crf <crf> -preset <preset>
-               -pix_fmt yuv420p -color_range tv <вихідний файл>
+            -c:v <codec> -crf <crf> -preset <preset>
+            -pix_fmt yuv420p -color_range tv <вихідний файл>
 
     У вигляді списку для subprocess це:
 
         path = os.path.join(WORK, out_name)
         cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", SRC,
-               "-c:v", codec, "-preset", preset,
-               "-pix_fmt", "yuv420p", "-color_range", "tv"]
+            "-c:v", codec, "-preset", preset,
+            "-pix_fmt", "yuv420p", "-color_range", "tv"]
         if crf is not None:                  # crf=None — коли бітрейт задають через extra
             cmd += ["-crf", str(crf)]
         cmd += (extra or [])
@@ -159,8 +175,19 @@ def encode(out_name, codec="libx264", crf=23, preset="medium", extra=None):
 
     Розмір файлу: os.path.getsize(path)
     """
-    # TODO 1
-    raise NotImplementedError("TODO 1")
+    path = os.path.join(WORK, out_name)
+    cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", SRC, "-c:v", codec, "-preset", preset, "-pix_fmt", "yuv420p", "-color_range", "tv"]
+    if crf is not None:
+        cmd += ["-crf", str(crf)]
+    cmd += (extra or [])
+    cmd += [path]
+
+    t = time.perf_counter()
+    r = run(cmd)
+    dt = time.perf_counter() - t
+    if r.returncode:
+        raise RuntimeError("ffmpeg не зміг закодувати відео:\n" + r.stderr[-500:])
+    return path, dt, os.path.getsize(path)
 
 
 def measure(path, src=SRC):
@@ -169,7 +196,7 @@ def measure(path, src=SRC):
     Для кожної з двох метрик запускається ffmpeg з двома входами:
 
         cmd = ["ffmpeg", "-hide_banner", "-i", path, "-i", src,
-               "-lavfi", CMP.format(fps=FPS) + metric, "-f", "null", "-"]
+            "-lavfi", CMP.format(fps=FPS) + metric, "-f", "null", "-"]
         r = run(cmd)
 
     ffmpeg пише підсумок у stderr, НЕ у stdout. Виглядає він так:
@@ -185,8 +212,18 @@ def measure(path, src=SRC):
 
     Обидві метрики рахуйте в циклі for metric in ("psnr", "ssim").
     """
-    # TODO 2
-    raise NotImplementedError("TODO 2")
+    values = {}
+    for metric in ("psnr", "ssim"):
+        cmd = ["ffmpeg", "-hide_banner", "-i", path, "-i", src, "-lavfi", CMP.format(fps=FPS) + metric, "-f", "null", "-"]
+        r = run(cmd)
+        if r.returncode:
+            raise RuntimeError(f"ffmpeg не зміг обчислити {metric.upper()}:\n" + r.stderr[-500:])
+        pattern = r"average:([\d.]+)" if metric == "psnr" else r"All:([\d.]+)"
+        m = re.search(pattern, r.stderr)
+        if not m:
+            raise RuntimeError(f"ffmpeg не повернув значення {metric.upper()}:\n" + r.stderr[-500:])
+        values[metric] = float(m.group(1))
+    return values["psnr"], values["ssim"]
 
 
 def ladder(crfs=(18, 23, 28, 33, 40), codec="libx264", preset="medium"):
@@ -205,8 +242,15 @@ def ladder(crfs=(18, 23, 28, 33, 40), codec="libx264", preset="medium"):
     Бітрейт рахується з розміру: size * 8 / тривалість / 1000 кбіт/с,
     тривалість тут NF / FPS = 5 секунд.
     """
-    # TODO 3
-    raise NotImplementedError("TODO 3")
+    rows = []
+    for crf in crfs:
+        path, dt, size = encode(f"q{crf}.mp4", codec, crf, preset)
+        psnr, ssim = measure(path)
+        rows.append([crf, size, psnr, ssim, dt])
+        duration = NF / FPS
+        bitrate = size * 8 / duration / 1000
+        print(f"   CRF {crf}: {size / 1024:.0f} КБ, " f"{bitrate:.0f} кбіт/с, PSNR {psnr:.2f} дБ, " f"SSIM {ssim:.4f}, час {dt:.2f} с")
+    return rows
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -229,8 +273,7 @@ def self_test():
     print("\n1. Еталонний кліп")
     make_source()
     d = probe(SRC)
-    check("роздільність 1280×720", (d.get("width"), d.get("height")) == ("1280", "720"),
-          f"{d.get('width')}×{d.get('height')}")
+    check("роздільність 1280×720", (d.get("width"), d.get("height")) == ("1280", "720"), f"{d.get('width')}×{d.get('height')}")
     check("кодек без втрат ffv1", d.get("codec_name") == "ffv1", d.get("codec_name"))
 
     print("\n2. Кодування")
@@ -265,19 +308,38 @@ def run_all():
         path, dt, size = encode(f"q{crf}.mp4", crf=crf)
         ps, ss = measure(path)
         rows.append([crf, size, ps, ss, dt])
-        print(f"   {crf:>5}{size/1024:>9.0f} КБ{size*8/5/1000:>10.0f} кб/с"
-              f"{ps:>8.2f}{ss:>9.4f}{dt:>7.1f}с")
+        print(f"   {crf:>5}{size/1024:>9.0f} КБ{size*8/5/1000:>10.0f} кб/с" f"{ps:>8.2f}{ss:>9.4f}{dt:>7.1f}с")
     plot_rd(rows)
 
     print("\nТа сама драбинка, виміряна НЕПРАВИЛЬНО (без вирівнювання міток часу)")
     print(f"   {'crf':>5}{'правильно':>12}{'неправильно':>14}")
     for crf, size, ps, ss, dt in rows:
-        r = run(["ffmpeg", "-hide_banner", "-i", os.path.join(WORK, f"q{crf}.mp4"),
-                 "-i", SRC, "-lavfi", "psnr", "-f", "null", "-"])
+        r = run(["ffmpeg", "-hide_banner", "-i", os.path.join(WORK, f"q{crf}.mp4"), "-i", SRC, "-lavfi", "psnr", "-f", "null", "-"])
         m = re.search(r"average:([\d.]+)", r.stderr)
         print(f"   {crf:>5}{ps:>11.2f}{float(m.group(1)):>13.2f}")
     print("   Праворуч майже стала величина: таке вимірювання не бачить різниці")
     print("   між найкращою і найгіршою якістю. Чому — у методичці, розділ 2.4.")
+
+    print("\nПорівняння H.264, H.265 і AV1 при однаковій якості")
+    print(f"   {'кодек':<7}{'crf':>5}{'розмір':>11}{'PSNR':>8}{'час':>8}")
+    jobs = [
+        ("H.264", "libx264", [18, 23, 28]),
+        ("H.265", "libx265", [20, 25, 30]),
+        ("AV1", "libsvtav1", [25, 35, 45]),
+    ]
+    job_rows = []
+    for name, codec, qs in jobs:
+        rows = []
+        for q in qs:
+            preset = "8" if codec == "libsvtav1" else "medium"
+            path, dt, size = encode(
+                f"{codec}_{q}.mp4", codec=codec, crf=q, preset=preset
+            )
+            psnr, ssim = measure(path)
+            rows.append([q, dt, size, psnr, ssim])
+            print(f"   {name:<7}{q:>5}{size/1024:>9.0f} КБ" f"{psnr:>8.2f}{dt:>7.1f}с")
+        job_rows.append((name, rows))
+    plot_codecs(job_rows)
 
 
 if __name__ == "__main__":
